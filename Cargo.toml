@@ -1,0 +1,14 @@
+[package]
+authors = ["Tolan Blundell <tolan@patternseek.net>"]
+name = "resticmgr"
+version = "0.1.0"
+
+[dependencies]
+failure = "0.1.1"
+failure_derive = "0.1.1"
+scoped_threadpool = "0.1.8"
+serde = "1.0.23"
+serde_derive = "1.0.23"
+serde_json = "1.0.8"
+structopt = "0.1.0"
+structopt-derive = "0.1.0"
