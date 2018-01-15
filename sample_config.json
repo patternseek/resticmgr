@@ -1,0 +1,20 @@
+[
+	{
+		"repos":[
+			{
+				"url": "<a restic repo url>",
+				"env": {
+						"<an environment variable name>": "<an environment variable value>",
+						"<another environment variable name>": "<another environment variable value>"
+				},
+				"options": {
+					"<an option name passed via -o>": "<an option value>"
+				}
+			}
+		],
+		"dirs":[
+			"<a directory to backup>",
+			"<another directory to backup>"
+		]
+	}
+]
