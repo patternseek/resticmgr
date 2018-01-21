@@ -4,6 +4,7 @@ name = "resticmgr"
 version = "0.1.0"
 
 [dependencies]
+chrono = { version = "0.4.0", features = ["serde", "rustc-serialize"] }
 failure = "0.1.1"
 failure_derive = "0.1.1"
 scoped_threadpool = "0.1.8"
