@@ -4,12 +4,20 @@ name = "resticmgr"
 version = "0.1.0"
 
 [dependencies]
-chrono = { version = "0.4.0", features = ["serde", "rustc-serialize"] }
 failure = "0.1.1"
 failure_derive = "0.1.1"
+lettre = "0.7.0"
+lettre_email = "0.7.0"
 scoped_threadpool = "0.1.8"
 serde = "1.0.23"
 serde_derive = "1.0.23"
 serde_json = "1.0.8"
 structopt = "0.1.0"
 structopt-derive = "0.1.0"
+
+[dependencies.chrono]
+features = [
+    "serde",
+    "rustc-serialize",
+]
+version = "0.4.0"
