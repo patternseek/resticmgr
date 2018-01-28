@@ -67,7 +67,7 @@ fn main() {
             match match args.action.as_ref() {
                 "backup" => backup_all(&conf, args.mail_on_success),
                 "verify" => check_last_snapshots_for_all(&conf, args.mail_on_success),
-                "init" => init_repo(&conf, args.repo_name ),
+                "init" => init_repo(&conf, args.repo_name),
                 "testsmtp" => test_smtp(&conf.smtpnotify),
                 _ => {
                     eprintln!("Invalid command '{}'", args.action);
@@ -76,9 +76,9 @@ fn main() {
             } {
                 Ok(_) => exit(0),
                 Err(err) => {
-                    eprintln!( "{}", err );
+                    eprintln!("{}", err);
                     exit(1)
-                },
+                }
             }
         }
         Err(err) => {
@@ -88,12 +88,12 @@ fn main() {
     }
 }
 
-fn init_repo(conf: &Config, repo_name_arg: Option<String> ) -> Result<(), Error> {
+fn init_repo(conf: &Config, repo_name_arg: Option<String>) -> Result<(), Error> {
     let mut command = Command::new("restic");
     command.arg("init");
 
-    if let Some( repo_name ) = repo_name_arg {
-        if let Some( repo ) = conf.repos.get( &repo_name ){
+    if let Some(repo_name) = repo_name_arg {
+        if let Some(repo) = conf.repos.get(&repo_name) {
             setup_restic_standard_options(repo, &mut command);
 
             // Run
@@ -103,11 +103,11 @@ fn init_repo(conf: &Config, repo_name_arg: Option<String> ) -> Result<(), Error>
             } else {
                 Err(err_msg(String::from_utf8_lossy(&output.stderr).to_string()))
             }
-        }else{
-            Err( err_msg( format!("Couldn't find a repo named {}", repo_name ) ) )
+        } else {
+            Err(err_msg(format!("Couldn't find a repo named {}", repo_name)))
         }
-    }else{
-        Err( err_msg( "reponame is a required argument for the init command" ) )
+    } else {
+        Err(err_msg("reponame is a required argument for the init command"))
     }
 
 
@@ -144,7 +144,7 @@ fn check_last_snapshots_for_all(conf: &Config, mail_on_success: bool) -> Result<
             restic_results.insert(&repo.url, check_last_snapshot(repo));
         });
     }
-    handle_thread_results(&conf, mail_on_success, restic_results)
+    handle_thread_results(conf, mail_on_success, restic_results)
 }
 
 fn test_smtp(conf: &SmtpNotificationConfig) -> Result<(), Error> {
@@ -155,9 +155,7 @@ fn test_smtp(conf: &SmtpNotificationConfig) -> Result<(), Error> {
             println!("SMTP test sent");
             Ok(())
         }
-        Err(err) => {
-            Err( err_msg( format!("SMTP test failed: {}", err ) ) )
-        }
+        Err(err) => Err(err_msg(format!("SMTP test failed: {}", err))),
     }
 }
 
@@ -215,8 +213,8 @@ fn check_last_snapshot(repo: &Repo) -> Result<String, Error> {
 
 fn setup_restic_standard_options(repo: &Repo, command: &mut Command) {
     // Set repo
-    command
-        .arg("-r").arg(&repo.url);
+    command.arg("-r")
+        .arg(&repo.url);
     // Set env vars
     if let Some(ref env) = repo.env {
         command.envs(env);
@@ -245,7 +243,7 @@ fn handle_thread_results(conf: &Config,
             }
         }
     }
-    if msgs.len() > 0 {
+    if !msgs.is_empty() {
         if mail_on_success {
             match send_smtp(&conf.smtpnotify, "Restic results", &msgs.join("\n")) {
                 Ok(_) => {}
@@ -255,7 +253,7 @@ fn handle_thread_results(conf: &Config,
             println!("{}", msgs.join("\n"));
         }
     }
-    if errors.len() > 0 {
+    if !errors.is_empty() {
         eprintln!("{}", errors.join("\n"));
         match send_smtp(&conf.smtpnotify, "Restic results", &errors.join("\n")) {
             Ok(_) => {}

@@ -41,11 +41,9 @@ impl BackupSet {
             if let Some(ref mut repo) = config.repos.get(name) {
                 repos.push(repo);
             } else {
-                return Err(
-                    err_msg(
-                        format!("Backupset config refers to a repo named {}, but none was found in repos config.", name)
-                    )
-                );
+                return Err(err_msg(format!("Backupset config refers to a repo named {}, but \
+                                            none was found in repos config.",
+                                           name)));
             }
         }
         Ok(repos)
