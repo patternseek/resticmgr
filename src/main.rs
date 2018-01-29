@@ -139,7 +139,11 @@ fn check_last_snapshots_for_all(conf: &Config, mail_on_success: bool) -> Result<
 
     let mut thread_pool = Pool::new(4);
     let mut restic_results = HashMap::new();
-    for repo in conf.repos.values() {
+    let repos = conf.repos.values();
+    if repos.len() < 1 {
+        return Err( err_msg( "No repositories found to verify.") );
+    }
+    for repo in repos {
         thread_pool.scoped(|_scope| {
             restic_results.insert(&repo.url, check_last_snapshot(repo));
         });
