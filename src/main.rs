@@ -51,7 +51,7 @@ struct SnapshotInfo {
     tree: String,
     paths: Vec<String>,
     hostname: String,
-    username: String,
+    username: Option<String>,
     uid: Option<isize>,
     gid: Option<isize>,
     id: String,
