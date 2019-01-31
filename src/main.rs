@@ -6,35 +6,39 @@ extern crate serde;
 extern crate serde_json;
 #[macro_use]
 extern crate serde_derive;
-extern crate failure;
 extern crate chrono;
+extern crate failure;
 extern crate lettre;
 extern crate lettre_email;
 
-use failure::{Error, err_msg};
-use structopt::StructOpt;
-use std::process::Command;
+use chrono::{DateTime, Utc};
+use failure::{err_msg, Error};
 use scoped_threadpool::Pool;
 use std::collections::HashMap;
-use chrono::{DateTime, Utc};
 use std::process::exit;
+use std::process::Command;
+use structopt::StructOpt;
 
 use lettre::smtp::authentication::{Credentials, Mechanism};
-use lettre::{EmailTransport, SmtpTransport};
-use lettre::smtp::ConnectionReuseParameters;
-use lettre_email::EmailBuilder;
 use lettre::smtp::error::SmtpResult;
+use lettre::smtp::ConnectionReuseParameters;
+use lettre::{EmailTransport, SmtpTransport};
+use lettre_email::EmailBuilder;
 
 mod config;
-use crate::config::Repo;
 use crate::config::Config;
+use crate::config::Repo;
 use crate::config::SmtpNotificationConfig;
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "resticmgr", about = "My Restic manager.")]
 struct Args {
     /// Whether to redirect success output to email
-    #[structopt(short = "e", long = "mailonsuccess", help = "On success output to email")]
+    #[structopt(
+        short = "e",
+        long = "mailonsuccess",
+        help = "On success output to email"
+    )]
     mail_on_success: bool,
     #[structopt(short = "r", long = "reponame", help = "Repo name when running init")]
     repo_name: Option<String>,
@@ -107,11 +111,10 @@ fn init_repo(conf: &Config, repo_name_arg: Option<String>) -> Result<(), Error> 
             Err(err_msg(format!("Couldn't find a repo named {}", repo_name)))
         }
     } else {
-        Err(err_msg("reponame is a required argument for the init command"))
+        Err(err_msg(
+            "reponame is a required argument for the init command",
+        ))
     }
-
-
-
 }
 
 fn backup_all(conf: &Config, mail_on_success: bool) -> Result<(), Error> {
@@ -141,7 +144,7 @@ fn check_last_snapshots_for_all(conf: &Config, mail_on_success: bool) -> Result<
     let mut restic_results = HashMap::new();
     let repos = conf.repos.values();
     if repos.len() < 1 {
-        return Err( err_msg( "No repositories found to verify.") );
+        return Err(err_msg("No repositories found to verify."));
     }
     for repo in repos {
         thread_pool.scoped(|_scope| {
@@ -152,9 +155,11 @@ fn check_last_snapshots_for_all(conf: &Config, mail_on_success: bool) -> Result<
 }
 
 fn test_smtp(conf: &SmtpNotificationConfig) -> Result<(), Error> {
-    match send_smtp(conf,
-                    "Resticmgr SMTP notification test",
-                    "This is a test email from resticmgr.") {
+    match send_smtp(
+        conf,
+        "Resticmgr SMTP notification test",
+        "This is a test email from resticmgr.",
+    ) {
         Ok(_) => {
             println!("SMTP test sent");
             Ok(())
@@ -165,9 +170,7 @@ fn test_smtp(conf: &SmtpNotificationConfig) -> Result<(), Error> {
 
 fn backup_to_single_repo(repo: &Repo, dirs: &[String]) -> Result<String, Error> {
     let mut command = Command::new("restic");
-    command.arg("backup")
-        .arg("--json");
-
+    command.arg("backup").arg("--json");
 
     setup_restic_standard_options(repo, &mut command);
 
@@ -185,9 +188,7 @@ fn backup_to_single_repo(repo: &Repo, dirs: &[String]) -> Result<String, Error> 
 
 fn check_last_snapshot(repo: &Repo) -> Result<String, Error> {
     let mut command = Command::new("restic");
-    command.arg("snapshots")
-        .arg("--last")
-        .arg("--json");
+    command.arg("snapshots").arg("--last").arg("--json");
 
     setup_restic_standard_options(repo, &mut command);
 
@@ -199,16 +200,21 @@ fn check_last_snapshot(repo: &Repo) -> Result<String, Error> {
             Ok(ref mut snapshots) => {
                 if let Some(ref snapshot) = snapshots.pop() {
                     let ago = Utc::now().signed_duration_since(snapshot.time);
-                    Ok(format!("Last backed up {} days, ({} hours), ({} mins) ago. Paths: {}",
-                               ago.num_days(),
-                               ago.num_hours(),
-                               ago.num_minutes(),
-                               snapshot.paths.join(", ")))
+                    Ok(format!(
+                        "Last backed up {} days, ({} hours), ({} mins) ago. Paths: {}",
+                        ago.num_days(),
+                        ago.num_hours(),
+                        ago.num_minutes(),
+                        snapshot.paths.join(", ")
+                    ))
                 } else {
                     Err(err_msg("No snapshots found"))
                 }
             }
-            Err(err) => Err(err_msg(format!("Couldn't parse response from restic: {}", err))),
+            Err(err) => Err(err_msg(format!(
+                "Couldn't parse response from restic: {}",
+                err
+            ))),
         }
     } else {
         Err(err_msg(String::from_utf8_lossy(&output.stderr).to_string()))
@@ -217,8 +223,7 @@ fn check_last_snapshot(repo: &Repo) -> Result<String, Error> {
 
 fn setup_restic_standard_options(repo: &Repo, command: &mut Command) {
     // Set repo
-    command.arg("-r")
-        .arg(&repo.url);
+    command.arg("-r").arg(&repo.url);
     // Set env vars
     if let Some(ref env) = repo.env {
         command.envs(env);
@@ -232,10 +237,11 @@ fn setup_restic_standard_options(repo: &Repo, command: &mut Command) {
     }
 }
 
-fn handle_thread_results(conf: &Config,
-                         mail_on_success: bool,
-                         restic_results: ThreadResults)
-                         -> Result<(), Error> {
+fn handle_thread_results(
+    conf: &Config,
+    mail_on_success: bool,
+    restic_results: ThreadResults,
+) -> Result<(), Error> {
     let mut msgs: Vec<String> = vec![];
     let mut errors: Vec<String> = vec![];
     for (repo, output) in restic_results {
@@ -281,7 +287,10 @@ fn send_smtp(conf: &SmtpNotificationConfig, subject: &str, msg: &str) -> SmtpRes
     // Connect to a remote server on a custom port
     let mut mailer = SmtpTransport::simple_builder(conf.server.clone())
         .unwrap()
-        .credentials(Credentials::new(conf.username.clone(), conf.password.clone()))
+        .credentials(Credentials::new(
+            conf.username.clone(),
+            conf.password.clone(),
+        ))
         .smtp_utf8(true)
         .authentication_mechanism(Mechanism::Login)
         .connection_reuse(ConnectionReuseParameters::ReuseUnlimited)

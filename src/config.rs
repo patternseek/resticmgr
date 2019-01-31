@@ -1,8 +1,8 @@
+use failure::{err_msg, Error};
+use serde_json;
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
-use std::collections::HashMap;
-use serde_json;
-use failure::{Error, err_msg};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Config {
@@ -41,9 +41,11 @@ impl BackupSet {
             if let Some(ref mut repo) = config.repos.get(name) {
                 repos.push(repo);
             } else {
-                return Err(err_msg(format!("Backupset config refers to a repo named {}, but \
-                                            none was found in repos config.",
-                                           name)));
+                return Err(err_msg(format!(
+                    "Backupset config refers to a repo named {}, but \
+                     none was found in repos config.",
+                    name
+                )));
             }
         }
         Ok(repos)
