@@ -1,15 +1,15 @@
-extern crate structopt;
+use structopt;
 #[macro_use]
 extern crate structopt_derive;
-extern crate scoped_threadpool;
-extern crate serde;
-extern crate serde_json;
+
+
+use serde_json;
 #[macro_use]
 extern crate serde_derive;
-extern crate chrono;
-extern crate failure;
-extern crate lettre;
-extern crate lettre_email;
+
+
+
+
 
 use chrono::{DateTime, Utc};
 use failure::{err_msg, Error};
@@ -240,7 +240,7 @@ fn setup_restic_standard_options(repo: &Repo, command: &mut Command) {
 fn handle_thread_results(
     conf: &Config,
     mail_on_success: bool,
-    restic_results: ThreadResults,
+    restic_results: ThreadResults<'_>,
 ) -> Result<(), Error> {
     let mut msgs: Vec<String> = vec![];
     let mut errors: Vec<String> = vec![];
