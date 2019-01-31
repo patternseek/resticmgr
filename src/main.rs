@@ -26,9 +26,9 @@ use lettre_email::EmailBuilder;
 use lettre::smtp::error::SmtpResult;
 
 mod config;
-use config::Repo;
-use config::Config;
-use config::SmtpNotificationConfig;
+use crate::config::Repo;
+use crate::config::Config;
+use crate::config::SmtpNotificationConfig;
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "resticmgr", about = "My Restic manager.")]
