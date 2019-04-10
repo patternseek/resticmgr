@@ -1,8 +1,8 @@
-use failure::{err_msg, Error};
 use serde_json;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
+use std::error::Error;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Config {
@@ -35,24 +35,24 @@ pub struct SmtpNotificationConfig {
 }
 
 impl BackupSet {
-    pub fn repos<'a>(&'a self, config: &'a Config) -> Result<Vec<&'a Repo>, Error> {
+    pub fn repos<'a>(&'a self, config: &'a Config) -> Result<Vec<&'a Repo>, Box<Error>> {
         let mut repos: Vec<&'a Repo> = vec![];
         for name in &self.reponames {
             if let Some(ref mut repo) = config.repos.get(name) {
                 repos.push(repo);
             } else {
-                return Err(err_msg(format!(
+                return Err(format!(
                     "Backupset config refers to a repo named {}, but \
                      none was found in repos config.",
                     name
-                )));
+                ).into());
             }
         }
         Ok(repos)
     }
 }
 
-pub fn load(config_file: String) -> Result<Config, Error> {
+pub fn load(config_file: String) -> Result<Config, Box<Error>> {
     let mut file = File::open(config_file)?;
     let mut contents = String::new();
     file.read_to_string(&mut contents)?;

@@ -2,17 +2,13 @@ use structopt;
 #[macro_use]
 extern crate structopt_derive;
 
-
 use serde_json;
 #[macro_use]
 extern crate serde_derive;
 
-
-
-
+use serde_derive::Serialize;
 
 use chrono::{DateTime, Utc};
-use failure::{err_msg, Error};
 use scoped_threadpool::Pool;
 use std::collections::HashMap;
 use std::process::exit;
@@ -20,24 +16,26 @@ use std::process::Command;
 use structopt::StructOpt;
 
 use lettre::smtp::authentication::{Credentials, Mechanism};
-use lettre::smtp::error::SmtpResult;
 use lettre::smtp::ConnectionReuseParameters;
-use lettre::{EmailTransport, SmtpTransport};
+use lettre::{Transport};
 use lettre_email::EmailBuilder;
 
 mod config;
 use crate::config::Config;
 use crate::config::Repo;
 use crate::config::SmtpNotificationConfig;
+use std::error::Error;
+use std::fmt;
+use lettre::SmtpClient;
 
-#[derive(StructOpt, Debug)]
 #[structopt(name = "resticmgr", about = "My Restic manager.")]
+#[derive(StructOpt, Debug)]
 struct Args {
     /// Whether to redirect success output to email
     #[structopt(
-        short = "e",
-        long = "mailonsuccess",
-        help = "On success output to email"
+    short = "e",
+    long = "mailonsuccess",
+    help = "On success output to email"
     )]
     mail_on_success: bool,
     #[structopt(short = "r", long = "reponame", help = "Repo name when running init")]
@@ -62,7 +60,29 @@ struct SnapshotInfo {
     short_id: String,
 }
 
-type ThreadResults<'a> = HashMap<&'a String, Result<String, Error>>;
+type ThreadResults<'a> = HashMap<&'a String, BoxResult<String>>;
+
+#[derive(Debug)]
+struct MyError {
+    details: String
+}
+impl MyError {
+    fn new<M: Into<String>>(msg: M) -> MyError {
+        MyError{details: msg.into()}
+    }
+}
+impl fmt::Display for MyError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f,"{}",self.details)
+    }
+}
+impl Error for MyError {
+    fn description(&self) -> &str {
+        &self.details
+    }
+}
+
+type BoxResult<T> = Result<T,Box<Error>>;
 
 fn main() {
     let args = Args::from_args();
@@ -75,7 +95,7 @@ fn main() {
                 "testsmtp" => test_smtp(&conf.smtpnotify),
                 _ => {
                     eprintln!("Invalid command '{}'", args.action);
-                    Err(err_msg("Invalid command"))
+                    Err( MyError::new("Invalid command").into() )
                 }
             } {
                 Ok(_) => exit(0),
@@ -92,7 +112,7 @@ fn main() {
     }
 }
 
-fn init_repo(conf: &Config, repo_name_arg: Option<String>) -> Result<(), Error> {
+fn init_repo(conf: &Config, repo_name_arg: Option<String>) -> BoxResult<()> {
     let mut command = Command::new("restic");
     command.arg("init");
 
@@ -105,19 +125,17 @@ fn init_repo(conf: &Config, repo_name_arg: Option<String>) -> Result<(), Error> 
             if output.status.success() {
                 Ok(())
             } else {
-                Err(err_msg(String::from_utf8_lossy(&output.stderr).to_string()))
+                Err( MyError::new( String::from_utf8_lossy(&output.stderr).to_string() ).into() )
             }
         } else {
-            Err(err_msg(format!("Couldn't find a repo named {}", repo_name)))
+            Err(MyError::new( format!("Couldn't find a repo named {}", repo_name)).into())
         }
     } else {
-        Err(err_msg(
-            "reponame is a required argument for the init command",
-        ))
+        Err( "reponame is a required argument for the init command".into() )
     }
 }
 
-fn backup_all(conf: &Config, mail_on_success: bool) -> Result<(), Error> {
+fn backup_all(conf: &Config, mail_on_success: bool) -> BoxResult<()> {
     if !mail_on_success {
         println!("Backing up...");
     }
@@ -135,7 +153,7 @@ fn backup_all(conf: &Config, mail_on_success: bool) -> Result<(), Error> {
     handle_thread_results(conf, mail_on_success, restic_results)
 }
 
-fn check_last_snapshots_for_all(conf: &Config, mail_on_success: bool) -> Result<(), Error> {
+fn check_last_snapshots_for_all(conf: &Config, mail_on_success: bool) -> BoxResult<()> {
     if !mail_on_success {
         println!("Checking snapshots...");
     }
@@ -144,7 +162,7 @@ fn check_last_snapshots_for_all(conf: &Config, mail_on_success: bool) -> Result<
     let mut restic_results = HashMap::new();
     let repos = conf.repos.values();
     if repos.len() < 1 {
-        return Err(err_msg("No repositories found to verify."));
+        return Err("No repositories found to verify.".into());
     }
     for repo in repos {
         thread_pool.scoped(|_scope| {
@@ -154,7 +172,7 @@ fn check_last_snapshots_for_all(conf: &Config, mail_on_success: bool) -> Result<
     handle_thread_results(conf, mail_on_success, restic_results)
 }
 
-fn test_smtp(conf: &SmtpNotificationConfig) -> Result<(), Error> {
+fn test_smtp(conf: &SmtpNotificationConfig) -> BoxResult<()> {
     match send_smtp(
         conf,
         "Resticmgr SMTP notification test",
@@ -164,11 +182,11 @@ fn test_smtp(conf: &SmtpNotificationConfig) -> Result<(), Error> {
             println!("SMTP test sent");
             Ok(())
         }
-        Err(err) => Err(err_msg(format!("SMTP test failed: {}", err))),
+        Err(err) => Err( MyError::new( format!("SMTP test failed: {}", err)).into() ),
     }
 }
 
-fn backup_to_single_repo(repo: &Repo, dirs: &[String]) -> Result<String, Error> {
+fn backup_to_single_repo(repo: &Repo, dirs: &[String]) -> Result<String, Box<Error>> {
     let mut command = Command::new("restic");
     command.arg("backup").arg("--json");
 
@@ -182,11 +200,11 @@ fn backup_to_single_repo(repo: &Repo, dirs: &[String]) -> Result<String, Error> 
     if output.status.success() {
         Ok(String::from_utf8_lossy(&output.stdout).to_string())
     } else {
-        Err(err_msg(String::from_utf8_lossy(&output.stderr).to_string()))
+        Err(MyError::new( String::from_utf8_lossy(&output.stderr).to_string() ).into() )
     }
 }
 
-fn check_last_snapshot(repo: &Repo) -> Result<String, Error> {
+fn check_last_snapshot(repo: &Repo) -> BoxResult<String> {
     let mut command = Command::new("restic");
     command.arg("snapshots").arg("--last").arg("--json");
 
@@ -208,16 +226,16 @@ fn check_last_snapshot(repo: &Repo) -> Result<String, Error> {
                         snapshot.paths.join(", ")
                     ))
                 } else {
-                    Err(err_msg("No snapshots found"))
+                    Err("No snapshots found".into())
                 }
             }
-            Err(err) => Err(err_msg(format!(
+            Err(err) => Err(MyError::new( format!(
                 "Couldn't parse response from restic: {}",
                 err
-            ))),
+            )).into()),
         }
     } else {
-        Err(err_msg(String::from_utf8_lossy(&output.stderr).to_string()))
+        Err(MyError::new( String::from_utf8_lossy(&output.stderr) ).into() )
     }
 }
 
@@ -241,7 +259,7 @@ fn handle_thread_results(
     conf: &Config,
     mail_on_success: bool,
     restic_results: ThreadResults<'_>,
-) -> Result<(), Error> {
+) -> BoxResult<()> {
     let mut msgs: Vec<String> = vec![];
     let mut errors: Vec<String> = vec![];
     for (repo, output) in restic_results {
@@ -257,7 +275,7 @@ fn handle_thread_results(
         if mail_on_success {
             match send_smtp(&conf.smtpnotify, "Restic results", &msgs.join("\n")) {
                 Ok(_) => {}
-                Err(_) => errors.push("Unable to send notification email for results!".into()),
+                Err(e) => errors.push(format!("Unable to send notification email for results: {}", e)),
             }
         } else {
             println!("{}", msgs.join("\n"));
@@ -267,26 +285,24 @@ fn handle_thread_results(
         eprintln!("{}", errors.join("\n"));
         match send_smtp(&conf.smtpnotify, "Restic results", &errors.join("\n")) {
             Ok(_) => {}
-            Err(_) => eprintln!("Unable to send notification email for errors!"),
+            Err(e) => eprintln!("Unable to send notification email for errors: {}", e),
         }
-        Err(err_msg(" "))
+        Err(" ".into())
     } else {
         Ok(())
     }
 }
 
-fn send_smtp(conf: &SmtpNotificationConfig, subject: &str, msg: &str) -> SmtpResult {
+fn send_smtp(conf: &SmtpNotificationConfig, subject: &str, msg: &str) -> BoxResult<()> {
     let email = EmailBuilder::new()
         .to(conf.to.clone())
         .from(conf.from.clone())
         .subject(subject)
         .text(msg)
-        .build()
-        .unwrap();
+        .build()?;
 
     // Connect to a remote server on a custom port
-    let mut mailer = SmtpTransport::simple_builder(conf.server.clone())
-        .unwrap()
+    let mut mailer = SmtpClient::new_simple(&conf.server.clone())?
         .credentials(Credentials::new(
             conf.username.clone(),
             conf.password.clone(),
@@ -294,6 +310,12 @@ fn send_smtp(conf: &SmtpNotificationConfig, subject: &str, msg: &str) -> SmtpRes
         .smtp_utf8(true)
         .authentication_mechanism(Mechanism::Login)
         .connection_reuse(ConnectionReuseParameters::ReuseUnlimited)
-        .build();
-    mailer.send(&email)
+        .transport();
+    let res = mailer.send(email.into());
+    mailer.close();
+    if res.is_ok(){
+        Ok(())
+    }else{
+        Err( MyError::new( format!("Couldn't send email: {:?}", res  ) ).into() )
+    }
 }
