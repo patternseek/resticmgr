@@ -15,10 +15,14 @@ use std::process::exit;
 use std::process::Command;
 use structopt::StructOpt;
 
-use lettre::smtp::authentication::{Credentials, Mechanism};
-use lettre::smtp::ConnectionReuseParameters;
-use lettre::{Transport};
-use lettre_email::EmailBuilder;
+// use lettre::smtp::authentication::{Credentials, Mechanism};
+// use lettre::smtp::ConnectionReuseParameters;
+// use lettre::{Transport};
+// use lettre_email::EmailBuilder;
+// use lettre::SmtpClient;
+
+use lettre::transport::smtp::authentication::{Credentials, Mechanism};
+use lettre::{Message, SmtpTransport, Transport};
 
 mod config;
 use crate::config::Config;
@@ -26,7 +30,6 @@ use crate::config::Repo;
 use crate::config::SmtpNotificationConfig;
 use std::error::Error;
 use std::fmt;
-use lettre::SmtpClient;
 
 #[structopt(name = "resticmgr", about = "My Restic manager.")]
 #[derive(StructOpt, Debug)]
@@ -82,7 +85,7 @@ impl Error for MyError {
     }
 }
 
-type BoxResult<T> = Result<T,Box<Error>>;
+type BoxResult<T> = Result<T,Box<dyn Error>>;
 
 fn main() {
     let args = Args::from_args();
@@ -186,7 +189,7 @@ fn test_smtp(conf: &SmtpNotificationConfig) -> BoxResult<()> {
     }
 }
 
-fn backup_to_single_repo(repo: &Repo, dirs: &[String]) -> Result<String, Box<Error>> {
+fn backup_to_single_repo(repo: &Repo, dirs: &[String]) -> Result<String, Box<dyn Error>> {
     let mut command = Command::new("restic");
     command.arg("backup").arg("--json");
 
@@ -294,25 +297,22 @@ fn handle_thread_results(
 }
 
 fn send_smtp(conf: &SmtpNotificationConfig, subject: &str, msg: &str) -> BoxResult<()> {
-    let email = EmailBuilder::new()
-        .to(conf.to.clone())
-        .from(conf.from.clone())
+    let email = Message::builder()
+        .to(conf.to.clone().parse().expect("Couldn't parse TO address"))
+        .from(conf.from.clone().parse().expect("Couldn't parse FROM address"))
         .subject(subject)
-        .text(msg)
-        .build()?;
+        .body(msg)?;
 
     // Connect to a remote server on a custom port
-    let mut mailer = SmtpClient::new_simple(&conf.server.clone())?
+    let mailer = SmtpTransport::relay(&conf.server.clone())?
         .credentials(Credentials::new(
             conf.username.clone(),
             conf.password.clone(),
         ))
-        .smtp_utf8(true)
-        .authentication_mechanism(Mechanism::Login)
-        .connection_reuse(ConnectionReuseParameters::ReuseUnlimited)
-        .transport();
-    let res = mailer.send(email.into());
-    mailer.close();
+        //.smtp_utf8(true)
+        .authentication(vec!(Mechanism::Login))
+        .build();
+    let res = mailer.send(&email);
     if res.is_ok(){
         Ok(())
     }else{

@@ -35,7 +35,7 @@ pub struct SmtpNotificationConfig {
 }
 
 impl BackupSet {
-    pub fn repos<'a>(&'a self, config: &'a Config) -> Result<Vec<&'a Repo>, Box<Error>> {
+    pub fn repos<'a>(&'a self, config: &'a Config) -> Result<Vec<&'a Repo>, Box<dyn Error>> {
         let mut repos: Vec<&'a Repo> = vec![];
         for name in &self.reponames {
             if let Some(ref mut repo) = config.repos.get(name) {
@@ -52,7 +52,7 @@ impl BackupSet {
     }
 }
 
-pub fn load(config_file: String) -> Result<Config, Box<Error>> {
+pub fn load(config_file: String) -> Result<Config, Box<dyn Error>> {
     let mut file = File::open(config_file)?;
     let mut contents = String::new();
     file.read_to_string(&mut contents)?;
