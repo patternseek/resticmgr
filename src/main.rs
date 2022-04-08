@@ -30,6 +30,7 @@ use crate::config::Repo;
 use crate::config::SmtpNotificationConfig;
 use std::error::Error;
 use std::fmt;
+use std::ops::Add;
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "resticmgr", about = "My Restic manager.")]
@@ -202,7 +203,15 @@ fn backup_to_single_repo(repo: &Repo, dirs: &[String]) -> Result<String, Box<dyn
     let output = command.output()?;
     if output.status.success() {
         Ok(String::from_utf8_lossy(&output.stdout).to_string())
-    } else {
+    } else if output.status.code() == Some(3) {
+        // This means some files didn't back up. Return success but show errors
+        Ok(
+            String::from_utf8_lossy(&output.stdout).to_string()
+                .add(
+                    String::from_utf8_lossy(&output.stderr).as_ref()
+                )
+        )
+    }else{
         Err(MyError::new( String::from_utf8_lossy(&output.stderr).to_string() ).into() )
     }
 }
