@@ -31,8 +31,8 @@ use crate::config::SmtpNotificationConfig;
 use std::error::Error;
 use std::fmt;
 
-#[structopt(name = "resticmgr", about = "My Restic manager.")]
 #[derive(StructOpt, Debug)]
+#[structopt(name = "resticmgr", about = "My Restic manager.")]
 struct Args {
     /// Whether to redirect success output to email
     #[structopt(
@@ -191,7 +191,7 @@ fn test_smtp(conf: &SmtpNotificationConfig) -> BoxResult<()> {
 
 fn backup_to_single_repo(repo: &Repo, dirs: &[String]) -> Result<String, Box<dyn Error>> {
     let mut command = Command::new("restic");
-    command.arg("backup").arg("--json");
+    command.arg("backup").arg("--json").arg("-q");
 
     setup_restic_standard_options(repo, &mut command);
 
@@ -301,7 +301,7 @@ fn send_smtp(conf: &SmtpNotificationConfig, subject: &str, msg: &str) -> BoxResu
         .to(conf.to.clone().parse().expect("Couldn't parse TO address"))
         .from(conf.from.clone().parse().expect("Couldn't parse FROM address"))
         .subject(subject)
-        .body(msg)?;
+        .body(msg.to_string())?;
 
     // Connect to a remote server on a custom port
     let mailer = SmtpTransport::relay(&conf.server.clone())?
