@@ -1,5 +1,4 @@
 use structopt;
-#[macro_use]
 extern crate structopt_derive;
 
 use serde_json;

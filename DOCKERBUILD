@@ -1,1 +1,1 @@
-docker build -f Dockerfile --progress=plain -t resticmgr-latest ../
+docker build -f Dockerfile --progress=plain -t resticmgr-latest .
