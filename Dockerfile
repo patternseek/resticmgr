@@ -1,4 +1,3 @@
-# MUST BE RUN FROM ROOT OF WORKSPACE
 
 FROM rust:bookworm AS builder
 WORKDIR /app
