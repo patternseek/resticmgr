@@ -192,7 +192,7 @@ fn test_smtp(conf: &SmtpNotificationConfig) -> BoxResult<()> {
 
 fn backup_to_single_repo(repo: &Repo, dirs: &[String]) -> Result<String, Box<dyn Error>> {
     let mut command = Command::new("restic");
-    command.arg("backup").arg("--json").arg("-q");
+    command.arg("backup");
 
     setup_restic_standard_options(repo, &mut command);
 
