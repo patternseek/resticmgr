@@ -10,5 +10,6 @@ WORKDIR /app
 # Workspace means we build in a target dir in the root of the workspace
 COPY --from=builder /app/target/release/resticmgr /usr/local/bin
 COPY restic_0.16.0_linux_amd64 /usr/local/bin/restic
-# FIXME
-CMD ["/usr/local/bin/resticmgr", "/resticmgr-config.json"]
+
+# Runs with Ofelia so the container just needs to be active
+CMD tail -f /dev/null
