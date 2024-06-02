@@ -313,6 +313,7 @@ fn send_smtp(conf: &SmtpNotificationConfig, subject: &str, msg: &str) -> BoxResu
 
     // Connect to a remote server on a custom port
     let mailer = SmtpTransport::relay(&conf.server.clone())?
+        .port(conf.port.clone() as u16 )
         .credentials(Credentials::new(
             conf.username.clone(),
             conf.password.clone(),
