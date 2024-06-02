@@ -273,7 +273,7 @@ fn handle_thread_results(
 ) -> BoxResult<()> {
     let mut msgs: Vec<String> = vec![];
     let mut errors: Vec<String> = vec![];
-    for (repo, output) in restic_results {
+    for (repo, output) in &restic_results {
         msgs.push(format!("Repository '{}' results:", repo));
         match output {
             Ok(out) => msgs.push(format!("{}", out)),
@@ -282,9 +282,11 @@ fn handle_thread_results(
             }
         }
     }
+    let repos = restic_results.iter().map( | r | {let (out,_) = r; out.to_string()} ).reduce(|acc, e| format!("{acc}, {e}")).unwrap_or("unknown repo".to_string());
+
     if !msgs.is_empty() {
         if mail_on_success {
-            match send_smtp(&conf.smtpnotify, "Restic results", &msgs.join("\n")) {
+            match send_smtp(&conf.smtpnotify, format!("Restic results for {repos}").as_str(), &msgs.join("\n")) {
                 Ok(_) => {}
                 Err(e) => errors.push(format!("Unable to send notification email for results: {}", e)),
             }
@@ -294,7 +296,7 @@ fn handle_thread_results(
     }
     if !errors.is_empty() {
         eprintln!("{}", errors.join("\n"));
-        match send_smtp(&conf.smtpnotify, "Restic results", &errors.join("\n")) {
+        match send_smtp(&conf.smtpnotify, format!("Restic results for {repos}").as_str(), &errors.join("\n")) {
             Ok(_) => {}
             Err(e) => eprintln!("Unable to send notification email for errors: {}", e),
         }
@@ -312,8 +314,13 @@ fn send_smtp(conf: &SmtpNotificationConfig, subject: &str, msg: &str) -> BoxResu
         .body(msg.to_string())?;
 
     // Connect to a remote server on a custom port
-    let mailer = SmtpTransport::relay(&conf.server.clone())?
-        .port(conf.port.clone() as u16 )
+    let base_builder = if conf.starttls {
+        SmtpTransport::starttls_relay(&conf.server.clone())?
+    }else {
+        SmtpTransport::relay(&conf.server.clone())?
+    };
+    let mailer = base_builder
+        .port(conf.port )
         .credentials(Credentials::new(
             conf.username.clone(),
             conf.password.clone(),

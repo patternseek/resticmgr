@@ -27,7 +27,8 @@ pub struct BackupSet {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SmtpNotificationConfig {
     pub server: String,
-    pub port: isize,
+    pub port: u16,
+    pub starttls: bool,
     pub username: String,
     pub password: String,
     pub from: String,
