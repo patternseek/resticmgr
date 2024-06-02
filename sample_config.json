@@ -34,7 +34,8 @@
   ],
   "smtpnotify": {
     "server": "smtp.example.com",
-    "port": 465,
+    "port": 587,
+    "starttls": true,
     "username": "me@example.com",
     "password": "mypsaaword",
     "from": "me@example.com",
