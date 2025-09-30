@@ -1,7 +1,7 @@
 [package]
 authors = ["Tolan Blundell <tolan@patternseek.net>"]
 name = "resticmgr"
-version = "0.1.0"
+version = "1.1.0"
 edition = "2018"
 
 [dependencies]
