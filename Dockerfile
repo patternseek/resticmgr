@@ -9,7 +9,7 @@ FROM debian:bookworm-slim AS runtime
 WORKDIR /app
 # Workspace means we build in a target dir in the root of the workspace
 COPY --from=builder /app/target/release/resticmgr /usr/local/bin
-COPY restic_0.16.0_linux_amd64 /usr/local/bin/restic
+COPY restic_0.18.0_linux_amd64 /usr/local/bin/restic
 RUN apt update && apt install -y ca-certificates
 
 # Runs with Ofelia so the container just needs to be active

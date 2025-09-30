@@ -286,17 +286,17 @@ fn handle_thread_results(
 
     if !msgs.is_empty() {
         if mail_on_success {
-            match send_smtp(&conf.smtpnotify, format!("Restic results for {repos}").as_str(), &msgs.join("\n")) {
+            match send_smtp(&conf.smtpnotify, format!("Restic results for {repos}").as_str(), &msgs.join("\n\n")) {
                 Ok(_) => {}
                 Err(e) => errors.push(format!("Unable to send notification email for results: {}", e)),
             }
         } else {
-            println!("{}", msgs.join("\n"));
+            println!("{}", msgs.join("\n\n"));
         }
     }
     if !errors.is_empty() {
-        eprintln!("{}", errors.join("\n"));
-        match send_smtp(&conf.smtpnotify, format!("Restic results for {repos}").as_str(), &errors.join("\n")) {
+        eprintln!("{}", errors.join("\n\n"));
+        match send_smtp(&conf.smtpnotify, format!("Restic results for {repos}").as_str(), &errors.join("\n\n")) {
             Ok(_) => {}
             Err(e) => eprintln!("Unable to send notification email for errors: {}", e),
         }
